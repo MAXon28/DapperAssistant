@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Data;
 using System.Threading.Tasks;
 
 namespace DapperAssistant
@@ -16,23 +17,42 @@ namespace DapperAssistant
         public Task AddAsync(TEntity newData);
 
         /// <summary>
+        /// Добавить значение (вызывает INSERT-запрос)
+        /// </summary>
+        /// <param name="newData"> Добавляемая сущность </param>
+        /// <param name="dbConnection"> Соединение с базой данных </param>
+        /// <param name="transaction"> Транзакция </param>
+        public Task AddAsync(TEntity newData, IDbConnection dbConnection = null, IDbTransaction transaction = null);
+
+        /// <summary>
         /// Получить список выбранных значений (вызывает SELECT-запрос)
         /// </summary>
-        /// <param name="certainNumberOfRows"> Необязательный параметр. Указывает на максимальное количество значений, которое нужно получить из базы данных (запрос с предложение "TOP"). Иначе считываются все возможные значения </param>
-        /// <param name="needSortDescendingOrder"> Необязательный параметр. Указывает на необходимость отсортировать значения по Id в порядке убывания </param>
+        /// <param name="certainNumberOfRows"> Указывает на максимальное количество значений, которое нужно получить из базы данных (запрос с предложение "TOP"). Иначе считываются все возможные значения </param>
+        /// <param name="needSortDescendingOrder"> Указывает на необходимость отсортировать значения по Id в порядке убывания </param>
         /// <returns> Список выбранных значений из базы данных </returns>
-        public Task<List<TEntity>> GetAsync(int certainNumberOfRows = -1, bool needSortDescendingOrder = false);
+        public Task<IEnumerable<TEntity>> GetAsync(int certainNumberOfRows = -1, bool needSortDescendingOrder = false);
 
         /// <summary>
         /// Получить список выбранных значений с условием (вызывает SELECT-запрос с WHERE)
         /// </summary>
-        /// <param name="conditionField"> Поле условия </param>
-        /// <param name="conditionType"> Тип условия (больше, меньше или равно) </param>
-        /// <param name="conditionFieldValue"> Значение условия </param>
-        /// <param name="certainNumberOfRows"> Необязательный параметр. Указывает на максимальное количество значений, которое нужно получить из базы данных (запрос с предложение "TOP"). Иначе считываются все возможные значения </param>
-        /// <param name="needSortDescendingOrder"> Необязательный параметр. Указывает на необходимость отсортировать значения по Id в порядке убывания </param>
+        /// <param name="querySettings"> Настройки запроса </param>
         /// <returns> Список выбранных значений из базы данных </returns>
-        public Task<List<TEntity>> GetWithConditionAsync(string conditionField, ConditionType conditionType, object conditionFieldValue, int certainNumberOfRows = -1, bool needSortDescendingOrder = false);
+        public Task<IEnumerable<TEntity>> GetWithConditionAsync(QuerySettings querySettings);
+
+        /// <summary>
+        /// Получить список выбранных значений (вызывает SELECT-запрос без WHERE и JOIN)
+        /// </summary>
+        /// <param name="certainNumberOfRows"> Указывает на максимальное количество значений, которое нужно получить из базы данных (запрос с предложение "TOP"). Иначе считываются все возможные значения </param>
+        /// <param name="needSortDescendingOrder"> Указывает на необходимость отсортировать значения по Id в порядке убывания </param>
+        /// <returns> Список выбранных значений из базы данных </returns>
+        public Task<IEnumerable<TEntity>> GetWihoutConditionJoinAsync(int certainNumberOfRows = -1, bool needSortDescendingOrder = false);
+
+        /// <summary>
+        /// Получить список выбранных значений (вызывает SELECT-запрос С WHERE, но без JOIN)
+        /// </summary>
+        /// <param name="querySettings"> Настройки запроса </param>
+        /// <returns> Список выбранных значений из базы данных </returns>
+        public Task<IEnumerable<TEntity>> GetWihoutJoinAsync(QuerySettings querySettings);
 
         /// <summary>
         /// Обновить значение (вызывает UPDATE-запрос)

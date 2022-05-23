@@ -25,11 +25,9 @@ namespace DapperAssistant.SqlQueryStrings
 
 
         /// <summary>
-        /// Шаблон запроса выборки c условием из базы данных
+        /// Шаблон условия
         /// </summary>
-        private static readonly string _selectQueryWithConditionTemplate = @"SELECT * 
-                                                                             FROM *table_name*
-                                                                             WHERE *table_name*.*condition_field* *condition_sign* @value";
+        private static readonly string _conditionTemplate = " WHERE *table_name*.*condition_field* *condition_sign* @value";
 
         /// <summary>
         /// Шаблон запроса обновления определённой строки в базе данных
@@ -47,8 +45,8 @@ namespace DapperAssistant.SqlQueryStrings
         /// <summary>
         /// Шаблон JOIN
         /// </summary>
-        private static readonly string _joinTemplate = @" INNER JOIN *second_table_name*
-                                                          ON *table_name*.*foreign_key* = *second_table_name*.Id ";
+        private static readonly string _joinTemplate = @" INNER JOIN *second_table_name* *sec_tab_nam*
+                                                          ON *table_name*.*foreign_key* = *sec_tab_nam*.Id ";
 
         /// <summary>
         /// Получить базовые SQL-запросы по текущему типу
@@ -68,12 +66,20 @@ namespace DapperAssistant.SqlQueryStrings
         {
             var queriesDictionary = new Dictionary<string, string>();
 
-            sqlTableName = GetSqlTableName(type);
+            var result = GetSqlTableName(type);
+            sqlTableName = result.Item1;
+            var needInsertId = result.Item2;
+
             var sqlTableColumns = GetSqlTableColumns(type, out var keysDictionary, out relatedEntitiesDictionary);
 
-            queriesDictionary.Add("INSERT", GetInsertQuery(sqlTableName, sqlTableColumns.Skip(1).ToList()));
+            queriesDictionary.Add("INSERT", GetInsertQuery(sqlTableName, needInsertId ? sqlTableColumns.ToList() : sqlTableColumns.Skip(1).ToList()));
             queriesDictionary.Add("SELECT", GetSelectQuery(sqlTableName, keysDictionary, TypeOfSelect.Standard));
             queriesDictionary.Add("SELECT_WITH_CONDITION", GetSelectQuery(sqlTableName, keysDictionary, TypeOfSelect.WithCondition));
+            if (relatedEntitiesDictionary.Count > 0)
+            {
+                queriesDictionary.Add("SELECT_WITHOUT_CONDITION_JOIN", GetSelectQueryWithoutJoin(sqlTableName, TypeOfSelect.Standard));
+                queriesDictionary.Add("SELECT_WITHOUT_JOIN", GetSelectQueryWithoutJoin(sqlTableName, TypeOfSelect.WithCondition));
+            }
             queriesDictionary.Add("UPDATE", GetUpdateQuery(sqlTableName, sqlTableColumns));
             queriesDictionary.Add("DELETE", GetDeleteQuery(sqlTableName));
 
@@ -81,13 +87,14 @@ namespace DapperAssistant.SqlQueryStrings
         }
 
         /// <summary>
-        /// Получить название таблицы в SQL
+        /// Получить название таблицы в SQL и небходимость создание идентификатора для неё на уровне приложения
         /// </summary>
         /// <param name="type"> Тип .NET, по которому определяется название таблицы в SQL </param>
-        /// <returns> Название таблицы в SQL </returns>
-        private static string GetSqlTableName(Type type)
+        /// <returns> Название таблицы в SQL и небходимость создание идентификатора для неё на уровне приложения (True - необходимо, False - нет) </returns>
+        private static (string, bool) GetSqlTableName(Type type)
         {
             var sqlTableName = type.Name.ToString();
+            var needInsertId = false;
 
             try
             {
@@ -97,6 +104,9 @@ namespace DapperAssistant.SqlQueryStrings
                 {
                     if (attributesEnumerator.Current.AttributeType.Name.Equals("SqlTableAttribute"))
                         sqlTableName = attributesEnumerator.Current.ConstructorArguments[0].Value.ToString();
+
+                    if (attributesEnumerator.Current.AttributeType.Name.Equals("NeedInsertIdAttribute"))
+                        needInsertId = true;
                 }
             }
             catch (Exception ex)
@@ -104,7 +114,7 @@ namespace DapperAssistant.SqlQueryStrings
                 Debug.WriteLine($"Ошибка при получении названия таблицы: {ex}.");
             }
 
-            return sqlTableName;
+            return (sqlTableName, needInsertId);
         }
 
         /// <summary>
@@ -128,9 +138,12 @@ namespace DapperAssistant.SqlQueryStrings
             {
                 var columnName = entityProperties[i].Name.ToString();
 
-                var customAttributes = entityProperties[i].CustomAttributes.ToList();
+                var customAttributes = entityProperties[i].CustomAttributes;
 
                 if (customAttributes.Select(attribute => attribute.AttributeType.Name).Where(name => name.Equals("NotSqlColumnAttribute")).ToList().Count > 0)
+                    continue;
+
+                if (customAttributes.Select(attribute => attribute.AttributeType.Name).Where(name => name.Equals("RelatedSqlEntityAttribute")).ToList().Count > 0)
                 {
                     Console.WriteLine(entityProperties[i].PropertyType);
 
@@ -177,16 +190,51 @@ namespace DapperAssistant.SqlQueryStrings
         /// <returns> Запрос выборки </returns>
         private static string GetSelectQuery(string sqlTableName, Dictionary<string, string> keysDictionary, TypeOfSelect typeOfSelect)
         {
-            var selectQueryTemplate = typeOfSelect == TypeOfSelect.WithCondition ? _selectQueryWithConditionTemplate : _selectQueryTemplate;
-
-            var selectAllQuery = new StringBuilder(selectQueryTemplate.Replace("*table_name*", sqlTableName));
+            var selectAllQuery = new StringBuilder(_selectQueryTemplate.Replace("*table_name*", sqlTableName));
 
             foreach (var keyDictionary in keysDictionary)
             {
-                selectAllQuery.Insert(selectAllQuery.Length - (int)typeOfSelect, _joinTemplate);
+                selectAllQuery.Insert(selectAllQuery.Length, _joinTemplate);
                 selectAllQuery.Replace("*second_table_name*", keyDictionary.Value);
+
+                if (keyDictionary.Value == sqlTableName)
+                {
+                    selectAllQuery.Replace("*sec_tab_nam*", keyDictionary.Value + "2");
+                }
+                else
+                {
+                    var index = selectAllQuery.ToString().IndexOf("*sec_tab_nam*");
+                    selectAllQuery.Remove(index, "*sec_tab_nam*".Length);
+                    selectAllQuery.Replace("*sec_tab_nam*", keyDictionary.Value);
+                }
+
                 selectAllQuery.Replace("*table_name*", sqlTableName);
                 selectAllQuery.Replace("*foreign_key*", keyDictionary.Key);
+            }
+
+            if (typeOfSelect == TypeOfSelect.WithCondition)
+            {
+                selectAllQuery.Insert(selectAllQuery.Length, _conditionTemplate);
+                selectAllQuery.Replace("*table_name*", sqlTableName);
+            }
+
+            return selectAllQuery.ToString();
+        }
+
+        /// <summary>
+        /// Получить запрос выборки без JOIN
+        /// </summary>
+        /// <param name="sqlTableName"> Название таблицы в SQL </param>
+        /// <param name="typeOfSelect"> Тип выборки </param>
+        /// <returns> Запрос выборки </returns>
+        private static string GetSelectQueryWithoutJoin(string sqlTableName, TypeOfSelect typeOfSelect)
+        {
+            var selectAllQuery = new StringBuilder(_selectQueryTemplate.Replace("*table_name*", sqlTableName));
+
+            if (typeOfSelect == TypeOfSelect.WithCondition)
+            {
+                selectAllQuery.Insert(selectAllQuery.Length, _conditionTemplate);
+                selectAllQuery.Replace("*table_name*", sqlTableName);
             }
 
             return selectAllQuery.ToString();

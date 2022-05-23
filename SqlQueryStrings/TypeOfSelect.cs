@@ -1,11 +1,18 @@
 ﻿namespace DapperAssistant.SqlQueryStrings
 {
     /// <summary>
-    /// Тип запроса выборки. Standard - встандартная выборка строк без условия базы данных, WithCondition - выборка с условием из базы данных
+    /// Тип запроса выборки к таблице базы данных
     /// </summary>
     internal enum TypeOfSelect
     {
+        /// <summary>
+        /// Стандартная выборка строк без условия
+        /// </summary>
         Standard = 0,
-        WithCondition = 60
+
+        /// <summary>
+        /// Выборка с условием
+        /// </summary>
+        WithCondition = 1
     }
 }
