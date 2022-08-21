@@ -45,7 +45,7 @@ namespace DapperAssistant.SqlQueryStrings
         /// <summary>
         /// Шаблон JOIN
         /// </summary>
-        private static readonly string _joinTemplate = @" INNER JOIN *second_table_name* *sec_tab_nam*
+        private static readonly string _joinTemplate = @" *type_of_join* JOIN *second_table_name* *sec_tab_nam*
                                                           ON *table_name*.*foreign_key* = *sec_tab_nam*.Id ";
 
         /// <summary>
@@ -124,11 +124,11 @@ namespace DapperAssistant.SqlQueryStrings
         /// <param name="keysDictionary"> Выходной параметр, который хранит в себе словарь соответствия внешнго ключа и связанной таблицы </param>
         /// <param name="relatedEntitiesDictionary"> Выходной параметр, словарь связанных сущностей </param>
         /// <returns> Список столбцов в SQL-таблице </returns>
-        private static List<string> GetSqlTableColumns(Type type, out Dictionary<string, string> keysDictionary, out Dictionary<Type, int> relatedEntitiesDictionary)
+        private static List<string> GetSqlTableColumns(Type type, out Dictionary<string, JoinData> keysDictionary, out Dictionary<Type, int> relatedEntitiesDictionary)
         {
             var sqlTableColumns = new List<string>();
 
-            keysDictionary = new Dictionary<string, string>();
+            keysDictionary = new Dictionary<string, JoinData>();
 
             relatedEntitiesDictionary = new Dictionary<Type, int>();
 
@@ -156,8 +156,13 @@ namespace DapperAssistant.SqlQueryStrings
                     if (attribute.AttributeType.Name.Equals("SqlForeignKeyAttribute"))
                     {
                         var foreignKeyTableName = attribute.ConstructorArguments[0].Value.ToString();
+                        var joinType = GetJoinType((TypeOfJoin)attribute.ConstructorArguments[1].Value);
 
-                        keysDictionary.Add(columnName, foreignKeyTableName);
+                        keysDictionary.Add(columnName, new JoinData
+                        {
+                            ForeignKeyTableName = foreignKeyTableName,
+                            JoinType = joinType
+                        });
                     }
                 }
 
@@ -166,6 +171,22 @@ namespace DapperAssistant.SqlQueryStrings
 
             return sqlTableColumns;
         }
+
+        /// <summary>
+        /// Получить тип соединения в виде строки
+        /// </summary>
+        /// <param name="typeOfJoin"> Тип соединения в формате перечисления </param>
+        /// <returns> Тип соединения в виде строки </returns>
+        private static string GetJoinType(TypeOfJoin typeOfJoin)
+            => typeOfJoin switch
+            {
+                TypeOfJoin.INNER => "INNER",
+                TypeOfJoin.RIGHT => "RIGHT",
+                TypeOfJoin.LEFT => "LEFT",
+                TypeOfJoin.FULL => "FULL",
+                _ => throw new NotImplementedException()
+            };
+
 
         /// <summary>
         /// Получить запрос вставки 
@@ -188,16 +209,17 @@ namespace DapperAssistant.SqlQueryStrings
         /// <param name="keysDictionary"> Словарь соответствия внешнго ключа и связанной таблицы </param>
         /// <param name="typeOfSelect"> Тип выборки </param>
         /// <returns> Запрос выборки </returns>
-        private static string GetSelectQuery(string sqlTableName, Dictionary<string, string> keysDictionary, TypeOfSelect typeOfSelect)
+        private static string GetSelectQuery(string sqlTableName, Dictionary<string, JoinData> keysDictionary, TypeOfSelect typeOfSelect)
         {
             var selectAllQuery = new StringBuilder(_selectQueryTemplate.Replace("*table_name*", sqlTableName));
 
             foreach (var keyDictionary in keysDictionary)
             {
                 selectAllQuery.Insert(selectAllQuery.Length, _joinTemplate);
-                selectAllQuery.Replace("*second_table_name*", keyDictionary.Value);
+                selectAllQuery.Replace("*type_of_join*", keyDictionary.Value.JoinType);
+                selectAllQuery.Replace("*second_table_name*", keyDictionary.Value.ForeignKeyTableName);
 
-                if (keyDictionary.Value == sqlTableName)
+                if (keyDictionary.Value.ForeignKeyTableName == sqlTableName)
                 {
                     selectAllQuery.Replace("*sec_tab_nam*", keyDictionary.Value + "2");
                 }
@@ -205,7 +227,7 @@ namespace DapperAssistant.SqlQueryStrings
                 {
                     var index = selectAllQuery.ToString().IndexOf("*sec_tab_nam*");
                     selectAllQuery.Remove(index, "*sec_tab_nam*".Length);
-                    selectAllQuery.Replace("*sec_tab_nam*", keyDictionary.Value);
+                    selectAllQuery.Replace("*sec_tab_nam*", keyDictionary.Value.ForeignKeyTableName);
                 }
 
                 selectAllQuery.Replace("*table_name*", sqlTableName);

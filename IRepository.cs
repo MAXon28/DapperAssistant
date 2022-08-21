@@ -45,14 +45,14 @@ namespace DapperAssistant
         /// <param name="certainNumberOfRows"> Указывает на максимальное количество значений, которое нужно получить из базы данных (запрос с предложение "TOP"). Иначе считываются все возможные значения </param>
         /// <param name="needSortDescendingOrder"> Указывает на необходимость отсортировать значения по Id в порядке убывания </param>
         /// <returns> Список выбранных значений из базы данных </returns>
-        public Task<IEnumerable<TEntity>> GetWihoutConditionJoinAsync(int certainNumberOfRows = -1, bool needSortDescendingOrder = false);
+        public Task<IEnumerable<TEntity>> GetWithoutConditionJoinAsync(int certainNumberOfRows = -1, bool needSortDescendingOrder = false);
 
         /// <summary>
         /// Получить список выбранных значений (вызывает SELECT-запрос С WHERE, но без JOIN)
         /// </summary>
         /// <param name="querySettings"> Настройки запроса </param>
         /// <returns> Список выбранных значений из базы данных </returns>
-        public Task<IEnumerable<TEntity>> GetWihoutJoinAsync(QuerySettings querySettings);
+        public Task<IEnumerable<TEntity>> GetWithoutJoinAsync(QuerySettings querySettings);
 
         /// <summary>
         /// Обновить значение (вызывает UPDATE-запрос)

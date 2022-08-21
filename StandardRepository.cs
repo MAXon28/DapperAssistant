@@ -19,7 +19,7 @@ namespace DapperAssistant
         /// <summary>
         /// Хранитель строки подключения к базе данных
         /// </summary>
-        private readonly DbConnectionKeeper _dbConnectionKeeper;
+        protected readonly DbConnectionKeeper _dbConnectionKeeper;
 
         /// <summary>
         /// Имя таблицы в базе данных
@@ -132,7 +132,7 @@ namespace DapperAssistant
             return await task;
         }
 
-        public async virtual Task<IEnumerable<TEntity>> GetWihoutConditionJoinAsync(int certainNumberOfRows = -1, bool needSortDescendingOrder = false)
+        public async virtual Task<IEnumerable<TEntity>> GetWithoutConditionJoinAsync(int certainNumberOfRows = -1, bool needSortDescendingOrder = false)
         {
             var sqlQuery = new StringBuilder(_selectQueryWithoutConditionJoin);
 
@@ -145,7 +145,7 @@ namespace DapperAssistant
             return await GetWithRelatedEntitiesAsync(dbConnection, sqlQuery.ToString());
         }
 
-        public async virtual Task<IEnumerable<TEntity>> GetWihoutJoinAsync(QuerySettings querySettings)
+        public async virtual Task<IEnumerable<TEntity>> GetWithoutJoinAsync(QuerySettings querySettings)
         {
             var sqlQuery = new StringBuilder(_selectQueryWithoutJoin);
 
@@ -377,7 +377,8 @@ namespace DapperAssistant
 
             foreach (var relatedEntity in relatedEntities)
             {
-                properties[_relatedEntitiesDictionary[relatedEntity.GetType()]].SetValue(currentEntity, relatedEntity);
+                if (!(relatedEntity is null))
+                    properties[_relatedEntitiesDictionary[relatedEntity.GetType()]].SetValue(currentEntity, relatedEntity);
                 properties[0].GetValue(currentEntity, null);
             }
 
