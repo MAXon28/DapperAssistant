@@ -14,7 +14,8 @@ namespace DapperAssistant
         /// Добавить значение (вызывает INSERT-запрос)
         /// </summary>
         /// <param name="newData"> Добавляемая сущность </param>
-        public Task AddAsync(TEntity newData);
+        /// <param name="returnId"> Нужно возвращать идентификатор добавленной записи (true) или нет (false) </param>
+        public Task<int> AddAsync(TEntity newData, bool returnId = false);
 
         /// <summary>
         /// Добавить значение (вызывает INSERT-запрос)
@@ -22,7 +23,8 @@ namespace DapperAssistant
         /// <param name="newData"> Добавляемая сущность </param>
         /// <param name="dbConnection"> Соединение с базой данных </param>
         /// <param name="transaction"> Транзакция </param>
-        public Task AddAsync(TEntity newData, IDbConnection dbConnection = null, IDbTransaction transaction = null);
+        /// <param name="returnId"> Нужно возвращать идентификатор добавленной записи (true) или нет (false) </param>
+        public Task<int> AddAsync(TEntity newData, IDbConnection dbConnection, IDbTransaction transaction, bool returnId = false);
 
         /// <summary>
         /// Получить список выбранных значений (вызывает SELECT-запрос)
@@ -64,6 +66,6 @@ namespace DapperAssistant
         /// Удалить значение (вызывает DELETE-запрос)
         /// </summary>
         /// <param name="id"> Идентификатор удаляемой сущности </param>
-        public Task DeleteAsync(int id);
+        public Task<int> DeleteAsync(int id);
     }
 }

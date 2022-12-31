@@ -17,6 +17,11 @@ namespace DapperAssistant
     public abstract class StandardRepository<TEntity> : IRepository<TEntity> where TEntity : class
     {
         /// <summary>
+        /// Запрос идентификатора добавленной записи (вызывается вместе с INSERT)
+        /// </summary>
+        private const string SelectLastInsertionId = "\nSELECT SCOPE_IDENTITY();";
+
+        /// <summary>
         /// Хранитель строки подключения к базе данных
         /// </summary>
         protected readonly DbConnectionKeeper _dbConnectionKeeper;
@@ -84,14 +89,18 @@ namespace DapperAssistant
             _deleteQuery = queriesDictionary["DELETE"];
         }
 
-        public async virtual Task AddAsync(TEntity newData)
+        public async virtual Task<int> AddAsync(TEntity newData, bool returnId = false)
         {
             using var dbConnection = _dbConnectionKeeper.GetDbConnection();
-            await dbConnection.ExecuteAsync(_insertQuery, newData);
+            return returnId 
+                ? await dbConnection.QuerySingleAsync<int>(_insertQuery.Insert(_insertQuery.Length, SelectLastInsertionId), newData)
+                : await dbConnection.ExecuteAsync(_insertQuery, newData);
         }
 
-        public async Task AddAsync(TEntity newData, IDbConnection dbConnection, IDbTransaction transaction) 
-            => await dbConnection.ExecuteAsync(_insertQuery, newData, transaction: transaction);
+        public async Task<int> AddAsync(TEntity newData, IDbConnection dbConnection, IDbTransaction transaction, bool returnId = false) 
+            => returnId
+                ? await dbConnection.QuerySingleAsync<int>(_insertQuery.Insert(_insertQuery.Length, SelectLastInsertionId), newData, transaction: transaction)
+                : await dbConnection.ExecuteAsync(_insertQuery, newData, transaction: transaction);
 
         public async virtual Task<IEnumerable<TEntity>> GetAsync(int certainNumberOfRows = -1, bool needSortDescendingOrder = false)
         {
@@ -229,11 +238,11 @@ namespace DapperAssistant
             await dbConnection.ExecuteAsync(_updateQuery, updateData);
         }
 
-        public async virtual Task DeleteAsync(int id)
+        public async virtual Task<int> DeleteAsync(int id)
         {
             using var dbConnection = _dbConnectionKeeper.GetDbConnection();
 
-            await dbConnection.ExecuteAsync(_deleteQuery, new { id });
+            return await dbConnection.ExecuteAsync(_deleteQuery, new { id });
         }
 
         /// <summary>
