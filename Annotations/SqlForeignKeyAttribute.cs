@@ -23,6 +23,6 @@ namespace DapperAssistant.Annotations
         /// <summary>
         /// Тип соединения
         /// </summary>
-        public TypeOfJoin TypeOfJoin { get; set; }
+        public TypeOfJoin TypeOfJoin { get; }
     }
 }

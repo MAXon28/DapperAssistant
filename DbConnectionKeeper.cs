@@ -13,18 +13,13 @@ namespace DapperAssistant
         /// </summary>
         private readonly string _connectionString;
 
-        public DbConnectionKeeper(string connectionString)
-        {
-            _connectionString = connectionString;
-        }
+        public DbConnectionKeeper(string connectionString) => _connectionString = connectionString;
 
         /// <summary>
         /// Получить подключение к базе данных
         /// </summary>
         /// <returns> Подключение к базе данных </returns>
         public IDbConnection GetDbConnection()
-        {
-            return new SqlConnection(_connectionString);
-        }
+            => new SqlConnection(_connectionString);
     }
 }

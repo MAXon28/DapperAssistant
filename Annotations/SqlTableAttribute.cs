@@ -8,10 +8,7 @@ namespace DapperAssistant.Annotations
     [AttributeUsage(AttributeTargets.Class)]
     public class SqlTableAttribute : Attribute
     {
-        public SqlTableAttribute(string tableName)
-        {
-            TableName = tableName;
-        }
+        public SqlTableAttribute(string tableName) => TableName = tableName;
 
         /// <summary>
         /// Название таблицы

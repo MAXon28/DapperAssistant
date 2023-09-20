@@ -71,7 +71,7 @@ namespace DapperAssistant
         /// </summary>
         private readonly Dictionary<Type, int> _relatedEntitiesDictionary;
 
-        public StandardRepository(DbConnectionKeeper dbConnectionKeeper)
+        protected StandardRepository(DbConnectionKeeper dbConnectionKeeper)
         {
             _dbConnectionKeeper = dbConnectionKeeper;
 
@@ -89,19 +89,29 @@ namespace DapperAssistant
             _deleteQuery = queriesDictionary["DELETE"];
         }
 
-        public async virtual Task<int> AddAsync(TEntity newData, bool returnId = false)
+        /// <inheritdoc/>
+        public async virtual Task<int> AddAsync(TEntity newData)
         {
             using var dbConnection = _dbConnectionKeeper.GetDbConnection();
-            return returnId 
-                ? await dbConnection.QuerySingleAsync<int>(_insertQuery.Insert(_insertQuery.Length, SelectLastInsertionId), newData)
-                : await dbConnection.ExecuteAsync(_insertQuery, newData);
+            return await dbConnection.ExecuteAsync(_insertQuery, newData);
         }
 
-        public async Task<int> AddAsync(TEntity newData, IDbConnection dbConnection, IDbTransaction transaction, bool returnId = false) 
-            => returnId
-                ? await dbConnection.QuerySingleAsync<int>(_insertQuery.Insert(_insertQuery.Length, SelectLastInsertionId), newData, transaction: transaction)
-                : await dbConnection.ExecuteAsync(_insertQuery, newData, transaction: transaction);
+        /// <inheritdoc/>
+        public async virtual Task<TResult> AddAsync<TResult>(TEntity newData)
+        {
+            using var dbConnection = _dbConnectionKeeper.GetDbConnection();
+            return await dbConnection.QuerySingleAsync<TResult>(_insertQuery.Insert(_insertQuery.Length, SelectLastInsertionId), newData);
+        }
 
+        /// <inheritdoc/>
+        public async Task<int> AddAsync(TEntity newData, IDbConnection dbConnection, IDbTransaction transaction)
+            => await dbConnection.ExecuteAsync(_insertQuery, newData, transaction: transaction);
+
+        /// <inheritdoc/>
+        public async Task<TResult> AddAsync<TResult>(TEntity newData, IDbConnection dbConnection, IDbTransaction transaction)
+            => await dbConnection.QuerySingleAsync<TResult>(_insertQuery.Insert(_insertQuery.Length, SelectLastInsertionId), newData, transaction: transaction);
+
+        /// <inheritdoc/>
         public async virtual Task<IEnumerable<TEntity>> GetAsync(int certainNumberOfRows = -1, bool needSortDescendingOrder = false)
         {
             var sqlQuery = new StringBuilder(_selectQuery);
@@ -121,6 +131,7 @@ namespace DapperAssistant
             return await task;
         }
 
+        /// <inheritdoc/>
         public async virtual Task<IEnumerable<TEntity>> GetWithConditionAsync(QuerySettings querySettings)
         {
             var sqlQuery = new StringBuilder(_selectQueryWithCondition);
@@ -141,6 +152,7 @@ namespace DapperAssistant
             return await task;
         }
 
+        /// <inheritdoc/>
         public async virtual Task<IEnumerable<TEntity>> GetWithoutConditionJoinAsync(int certainNumberOfRows = -1, bool needSortDescendingOrder = false)
         {
             var sqlQuery = new StringBuilder(_selectQueryWithoutConditionJoin);
@@ -154,6 +166,7 @@ namespace DapperAssistant
             return await GetWithRelatedEntitiesAsync(dbConnection, sqlQuery.ToString());
         }
 
+        /// <inheritdoc/>
         public async virtual Task<IEnumerable<TEntity>> GetWithoutJoinAsync(QuerySettings querySettings)
         {
             var sqlQuery = new StringBuilder(_selectQueryWithoutJoin);
@@ -197,8 +210,8 @@ namespace DapperAssistant
         /// </summary>
         /// <param name="conditionType"> Тип условия </param>
         /// <returns> Знак условия </returns>
-        private string GetConditionSign(ConditionType conditionType) =>
-            conditionType switch
+        private string GetConditionSign(ConditionType conditionType) 
+            => conditionType switch
             {
                 ConditionType.MORE => ">",
                 ConditionType.LESS => "<",
@@ -218,26 +231,22 @@ namespace DapperAssistant
             var methodsInfo = typeof(StandardRepository<TEntity>).GetMethods(BindingFlags.NonPublic | BindingFlags.Instance)
                 .Select(methodInfo => methodInfo).Where(methodInfo => methodInfo.Name == "GetWithRelatedEntitiesAsync").ToList();
 
-            foreach (var info in methodsInfo)
-            {
-                Console.WriteLine(info.Name);
-            }
-
             var neededMethod = methodsInfo[relatedTypes.Length];
 
-            if (relatedTypes.Length == 0)
-                return neededMethod;
-
-            return neededMethod.MakeGenericMethod(relatedTypes);
+            return relatedTypes.Length == 0
+                ? neededMethod
+                : neededMethod.MakeGenericMethod(relatedTypes);
         }
 
-        public async virtual Task UpdateAsync(TEntity updateData)
+        /// <inheritdoc/>
+        public async virtual Task<int> UpdateAsync(TEntity updateData)
         {
             using var dbConnection = _dbConnectionKeeper.GetDbConnection();
 
-            await dbConnection.ExecuteAsync(_updateQuery, updateData);
+            return await dbConnection.ExecuteAsync(_updateQuery, updateData);
         }
 
+        /// <inheritdoc/>
         public async virtual Task<int> DeleteAsync(int id)
         {
             using var dbConnection = _dbConnectionKeeper.GetDbConnection();
@@ -253,9 +262,7 @@ namespace DapperAssistant
         /// <param name="value"> Необязательный параметр, который используется в случае SELECT-запроса с WHERE </param>
         /// <returns> Данные со связанными сущностями </returns>
         private async Task<IEnumerable<TEntity>> GetWithRelatedEntitiesAsync(IDbConnection connection, string sqlQuery, object value = null)
-        {
-            return await connection.QueryAsync<TEntity>(sqlQuery, new { value });
-        }
+            => await connection.QueryAsync<TEntity>(sqlQuery, new { value });
 
         /// <summary>
         /// Получить данные со связанными сущностями (связь один-к-одному)
@@ -266,13 +273,11 @@ namespace DapperAssistant
         /// <param name="value"> Необязательный параметр, который используется в случае SELECT-запроса с WHERE </param>
         /// <returns> Данные со связанными сущностями </returns>
         private async Task<IEnumerable<TEntity>> GetWithRelatedEntitiesAsync<TFirstRelatedEntity>(IDbConnection connection, string sqlQuery, object value = null)
-        {
-            return await connection.QueryAsync<TEntity, TFirstRelatedEntity, TEntity>(
+            => await connection.QueryAsync<TEntity, TFirstRelatedEntity, TEntity>(
                 sqlQuery,
                 (currentEntity, firstRelatedEntity) =>
                 SetValuesForRelatedEntities(currentEntity, firstRelatedEntity),
                 new { value });
-        }
 
         /// <summary>
         /// Получить данные со связанными сущностями (связь один-к-одному)
@@ -281,16 +286,14 @@ namespace DapperAssistant
         /// <typeparam name="TSecondRelatedEntity"> Вторая связанная сущность </typeparam>
         /// <param name="connection"> Соединение с базой данных </param>
         /// <param name="sqlQuery"> SQL-запрос </param>
-        /// <param name="value"> Необязательный параметр, который используется в случае SELECT-запроса с WHERE </param>
+        /// <param name="value"> Необязательный параметр, который используется в случае SELECT-запроса с WHERE</param>
         /// <returns> Данные со связанными сущностями </returns>
         private async Task<IEnumerable<TEntity>> GetWithRelatedEntitiesAsync<TFirstRelatedEntity, TSecondRelatedEntity>(IDbConnection connection, string sqlQuery, object value = null)
-        {
-            return await connection.QueryAsync<TEntity, TFirstRelatedEntity, TSecondRelatedEntity, TEntity>(
+            => await connection.QueryAsync<TEntity, TFirstRelatedEntity, TSecondRelatedEntity, TEntity>(
                 sqlQuery,
                 (currentEntity, firstRelatedEntity, secondRelatedEntity) =>
                 SetValuesForRelatedEntities(currentEntity, firstRelatedEntity, secondRelatedEntity),
                 new { value });
-        }
 
         /// <summary>
         /// Получить данные со связанными сущностями (связь один-к-одному)
@@ -303,13 +306,11 @@ namespace DapperAssistant
         /// <param name="value"> Необязательный параметр, который используется в случае SELECT-запроса с WHERE </param>
         /// <returns> Данные со связанными сущностями </returns>
         private async Task<IEnumerable<TEntity>> GetWithRelatedEntitiesAsync<TFirstRelatedEntity, TSecondRelatedEntity, TThirdRelatedEntity>(IDbConnection connection, string sqlQuery, object value = null)
-        {
-            return await connection.QueryAsync<TEntity, TFirstRelatedEntity, TSecondRelatedEntity, TThirdRelatedEntity, TEntity>(
+            => await connection.QueryAsync<TEntity, TFirstRelatedEntity, TSecondRelatedEntity, TThirdRelatedEntity, TEntity>(
                 sqlQuery,
                 (currentEntity, firstRelatedEntity, secondRelatedEntity, thirdRelatedEntity) =>
                 SetValuesForRelatedEntities(currentEntity, firstRelatedEntity, secondRelatedEntity, thirdRelatedEntity),
                 new { value });
-        }
 
         /// <summary>
         /// Получить данные со связанными сущностями (связь один-к-одному)
@@ -323,13 +324,11 @@ namespace DapperAssistant
         /// <param name="value"> Необязательный параметр, который используется в случае SELECT-запроса с WHERE </param>
         /// <returns> Данные со связанными сущностями </returns>
         private async Task<IEnumerable<TEntity>> GetWithRelatedEntitiesAsync<TFirstRelatedEntity, TSecondRelatedEntity, TThirdRelatedEntity, TFourthRelatedEntity>(IDbConnection connection, string sqlQuery, object value = null)
-        {
-            return await connection.QueryAsync<TEntity, TFirstRelatedEntity, TSecondRelatedEntity, TThirdRelatedEntity, TFourthRelatedEntity, TEntity>(
+            => await connection.QueryAsync<TEntity, TFirstRelatedEntity, TSecondRelatedEntity, TThirdRelatedEntity, TFourthRelatedEntity, TEntity>(
                 sqlQuery,
                 (currentEntity, firstRelatedEntity, secondRelatedEntity, thirdRelatedEntity, fourthRelatedEntity) =>
                 SetValuesForRelatedEntities(currentEntity, firstRelatedEntity, secondRelatedEntity, thirdRelatedEntity, fourthRelatedEntity),
                 new { value });
-        }
 
         /// <summary>
         /// Получить данные со связанными сущностями (связь один-к-одному)
@@ -344,13 +343,11 @@ namespace DapperAssistant
         /// <param name="value"> Необязательный параметр, который используется в случае SELECT-запроса с WHERE </param>
         /// <returns> Данные со связанными сущностями </returns>
         private async Task<IEnumerable<TEntity>> GetWithRelatedEntitiesAsync<TFirstRelatedEntity, TSecondRelatedEntity, TThirdRelatedEntity, TFourthRelatedEntity, TFifthRelatedEntity>(IDbConnection connection, string sqlQuery, object value = null)
-        {
-            return await connection.QueryAsync<TEntity, TFirstRelatedEntity, TSecondRelatedEntity, TThirdRelatedEntity, TFourthRelatedEntity, TFifthRelatedEntity, TEntity>(
+            => await connection.QueryAsync<TEntity, TFirstRelatedEntity, TSecondRelatedEntity, TThirdRelatedEntity, TFourthRelatedEntity, TFifthRelatedEntity, TEntity>(
                 sqlQuery,
                 (currentEntity, firstRelatedEntity, secondRelatedEntity, thirdRelatedEntity, fourthRelatedEntity, fifthRelatedEntity) =>
                 SetValuesForRelatedEntities(currentEntity, firstRelatedEntity, secondRelatedEntity, thirdRelatedEntity, fourthRelatedEntity, fifthRelatedEntity),
                 new { value });
-        }
 
         /// <summary>
         /// Получить данные со связанными сущностями (связь один-к-одному)
@@ -366,13 +363,11 @@ namespace DapperAssistant
         /// <param name="value"> Необязательный параметр, который используется в случае SELECT-запроса с WHERE </param>
         /// <returns> Данные со связанными сущностями </returns>
         private async Task<IEnumerable<TEntity>> GetWithRelatedEntitiesAsync<TFirstRelatedEntity, TSecondRelatedEntity, TThirdRelatedEntity, TFourthRelatedEntity, TFifthRelatedEntity, TSixthRelatedEntity>(IDbConnection connection, string sqlQuery, object value = null)
-        {
-            return await connection.QueryAsync<TEntity, TFirstRelatedEntity, TSecondRelatedEntity, TThirdRelatedEntity, TFourthRelatedEntity, TFifthRelatedEntity, TSixthRelatedEntity, TEntity>(
+            => await connection.QueryAsync<TEntity, TFirstRelatedEntity, TSecondRelatedEntity, TThirdRelatedEntity, TFourthRelatedEntity, TFifthRelatedEntity, TSixthRelatedEntity, TEntity>(
                 sqlQuery,
                 (currentEntity, firstRelatedEntity, secondRelatedEntity, thirdRelatedEntity, fourthRelatedEntity, fifthRelatedEntity, sixthRelatedEntity) =>
-                SetValuesForRelatedEntities (currentEntity, firstRelatedEntity, secondRelatedEntity, thirdRelatedEntity, fourthRelatedEntity, fifthRelatedEntity, sixthRelatedEntity),
+                SetValuesForRelatedEntities(currentEntity, firstRelatedEntity, secondRelatedEntity, thirdRelatedEntity, fourthRelatedEntity, fifthRelatedEntity, sixthRelatedEntity),
                 new { value });
-        }
 
         /// <summary>
         /// Установить значения связанных сущностей в сущность, с которой работает репозиторий
@@ -386,7 +381,7 @@ namespace DapperAssistant
 
             foreach (var relatedEntity in relatedEntities)
             {
-                if (!(relatedEntity is null))
+                if (relatedEntity is not null)
                     properties[_relatedEntitiesDictionary[relatedEntity.GetType()]].SetValue(currentEntity, relatedEntity);
                 properties[0].GetValue(currentEntity, null);
             }

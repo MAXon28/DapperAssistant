@@ -14,8 +14,13 @@ namespace DapperAssistant
         /// Добавить значение (вызывает INSERT-запрос)
         /// </summary>
         /// <param name="newData"> Добавляемая сущность </param>
-        /// <param name="returnId"> Нужно возвращать идентификатор добавленной записи (true) или нет (false) </param>
-        public Task<int> AddAsync(TEntity newData, bool returnId = false);
+        public Task<int> AddAsync(TEntity newData);
+
+        /// <summary>
+        /// Добавить значение (вызывает INSERT-запрос)
+        /// </summary>
+        /// <param name="newData"> Добавляемая сущность </param>
+        public Task<TResult> AddAsync<TResult>(TEntity newData);
 
         /// <summary>
         /// Добавить значение (вызывает INSERT-запрос)
@@ -23,8 +28,15 @@ namespace DapperAssistant
         /// <param name="newData"> Добавляемая сущность </param>
         /// <param name="dbConnection"> Соединение с базой данных </param>
         /// <param name="transaction"> Транзакция </param>
-        /// <param name="returnId"> Нужно возвращать идентификатор добавленной записи (true) или нет (false) </param>
-        public Task<int> AddAsync(TEntity newData, IDbConnection dbConnection, IDbTransaction transaction, bool returnId = false);
+        public Task<int> AddAsync(TEntity newData, IDbConnection dbConnection, IDbTransaction transaction);
+
+        /// <summary>
+        /// Добавить значение (вызывает INSERT-запрос)
+        /// </summary>
+        /// <param name="newData"> Добавляемая сущность </param>
+        /// <param name="dbConnection"> Соединение с базой данных </param>
+        /// <param name="transaction"> Транзакция </param>
+        public Task<TResult> AddAsync<TResult>(TEntity newData, IDbConnection dbConnection, IDbTransaction transaction);
 
         /// <summary>
         /// Получить список выбранных значений (вызывает SELECT-запрос)
@@ -60,7 +72,7 @@ namespace DapperAssistant
         /// Обновить значение (вызывает UPDATE-запрос)
         /// </summary>
         /// <param name="updateData"> Обновляемая сущность </param>
-        public Task UpdateAsync(TEntity updateData);
+        public Task<int> UpdateAsync(TEntity updateData);
 
         /// <summary>
         /// Удалить значение (вызывает DELETE-запрос)

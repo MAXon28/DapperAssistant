@@ -72,7 +72,9 @@ namespace DapperAssistant.SqlQueryStrings
 
             var sqlTableColumns = GetSqlTableColumns(type, out var keysDictionary, out relatedEntitiesDictionary);
 
-            queriesDictionary.Add("INSERT", GetInsertQuery(sqlTableName, needInsertId ? sqlTableColumns.ToList() : sqlTableColumns.Skip(1).ToList()));
+            var sqlTableColumnsWithFilter = needInsertId ? sqlTableColumns : sqlTableColumns.Where(x => x != "Id").ToList();
+
+            queriesDictionary.Add("INSERT", GetInsertQuery(sqlTableName, sqlTableColumnsWithFilter));
             queriesDictionary.Add("SELECT", GetSelectQuery(sqlTableName, keysDictionary, TypeOfSelect.Standard));
             queriesDictionary.Add("SELECT_WITH_CONDITION", GetSelectQuery(sqlTableName, keysDictionary, TypeOfSelect.WithCondition));
             if (relatedEntitiesDictionary.Count > 0)
@@ -145,8 +147,6 @@ namespace DapperAssistant.SqlQueryStrings
 
                 if (customAttributes.Select(attribute => attribute.AttributeType.Name).Where(name => name.Equals("RelatedSqlEntityAttribute")).ToList().Count > 0)
                 {
-                    Console.WriteLine(entityProperties[i].PropertyType);
-
                     relatedEntitiesDictionary.Add(entityProperties[i].PropertyType, i);
                     continue;
                 }
@@ -290,8 +290,6 @@ namespace DapperAssistant.SqlQueryStrings
         /// <param name="sqlTableName"> Название таблицы в SQL </param>
         /// <returns> Запрос удаления </returns>
         private static string GetDeleteQuery(string sqlTableName)
-        {
-            return _deleteQueryTemplate.Replace("*table_name*", sqlTableName);
-        }
+            => _deleteQueryTemplate.Replace("*table_name*", sqlTableName);
     }
 }
